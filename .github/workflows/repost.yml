@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt && playwright install chromium
-            - run: python bot.py
+      - run: python bot.py
         env:
           X_COOKIES: ${{ secrets.X_COOKIES }}
           SOURCE_ACCOUNT: ${{ secrets.SOURCE_ACCOUNT }}
