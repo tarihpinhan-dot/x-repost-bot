@@ -1,5 +1,4 @@
 import json, os, asyncio
-from twscrape import API
 from playwright.async_api import async_playwright
 
 STATE_FILE = "posted.json"
@@ -12,38 +11,39 @@ def load_posted():
 def save_posted(ids):
     json.dump(list(ids), open(STATE_FILE, "w"))
 
-async def get_new_tweets(source_account, posted):
-    api = API()
-    await api.pool.login_all()
-    tweets = []
-    async for t in api.user_tweets(source_account, limit=10):
-        if str(t.id) not in posted:
-            tweets.append(t)
-    return tweets
-
-async def post_tweet(page, text):
-    await page.goto("https://x.com/compose/post")
-    await page.fill('div[aria-label="Post text"]', text)
-    await page.click('button[data-testid="tweetButtonInline"]')
-
 async def main():
     posted = load_posted()
-    new_tweets = await get_new_tweets(os.environ["SOURCE_ACCOUNT"], posted)
+    cookies = json.loads(os.environ["X_COOKIES"])
+    source_account = os.environ["SOURCE_ACCOUNT"]
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.goto("https://x.com/login")
-        await page.fill('input[name="text"]', os.environ["X_USERNAME"])
-        await page.click('text=Next')
-        await page.fill('input[name="password"]', os.environ["X_PASSWORD"])
-        await page.click('text=Log in')
-        await page.wait_for_timeout(3000)
+        context = await browser.new_context()
+        await context.add_cookies(cookies)
+        page = await context.new_page()
 
-        for t in new_tweets:
-            await post_tweet(page, t.rawContent)
-            posted.add(str(t.id))
+        await page.goto(f"https://x.com/{source_account}")
+        await page.wait_for_timeout(5000)
+
+        tweet_elements = await page.locator('article[data-testid="tweet"]').all()
+        new_tweets = []
+        for el in tweet_elements[:5]:
+            try:
+                text = await el.locator('div[data-testid="tweetText"]').inner_text()
+                href = await el.locator('a[href*="/status/"]').first.get_attribute('href')
+                tweet_id = href.split('/status/')[-1].split('?')[0]
+                if tweet_id not in posted:
+                    new_tweets.append((tweet_id, text))
+            except Exception:
+                continue
+
+        for tweet_id, text in reversed(new_tweets):
+            await page.goto("https://x.com/compose/post")
             await page.wait_for_timeout(2000)
+            await page.fill('div[aria-label="Post text"]', text)
+            await page.click('button[data-testid="tweetButtonInline"]')
+            await page.wait_for_timeout(3000)
+            posted.add(tweet_id)
 
         await browser.close()
 
