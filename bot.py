@@ -11,9 +11,30 @@ def load_posted():
 def save_posted(ids):
     json.dump(list(ids), open(STATE_FILE, "w"))
 
+def normalize_cookies(cookies):
+    mapping = {
+        "no_restriction": "None",
+        "unspecified": "Lax",
+        "lax": "Lax",
+        "strict": "Strict",
+        "none": "None",
+    }
+    fixed = []
+    for c in cookies:
+        c = dict(c)
+        same_site = c.get("sameSite", "Lax")
+        c["sameSite"] = mapping.get(str(same_site).lower(), "Lax")
+        allowed_keys = {"name", "value", "domain", "path", "expires", "httpOnly", "secure", "sameSite"}
+        c = {k: v for k, v in c.items() if k in allowed_keys}
+        if "expires" not in c or c["expires"] is None:
+            c["expires"] = -1
+        fixed.append(c)
+    return fixed
+
 async def main():
     posted = load_posted()
-    cookies = json.loads(os.environ["X_COOKIES"])
+    raw_cookies = json.loads(os.environ["X_COOKIES"])
+    cookies = normalize_cookies(raw_cookies)
     source_account = os.environ["SOURCE_ACCOUNT"]
 
     async with async_playwright() as p:
