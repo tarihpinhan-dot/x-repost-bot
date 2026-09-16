@@ -45,7 +45,7 @@ async def main():
         await context.add_cookies(cookies)
         page = await context.new_page()
 
-        await page.goto(f"https://x.com/{source_account}", wait_until="networkidle", timeout=60000)
+        await page.goto(f"https://x.com/{source_account}", wait_until="domcontentloaded", timeout=60000)
         await page.wait_for_timeout(3000)
         try:
             await page.wait_for_selector('article', timeout=15000)
