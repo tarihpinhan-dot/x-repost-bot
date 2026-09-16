@@ -1,0 +1,26 @@
+name: Auto Repost
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  repost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt && playwright install chromium
+      - run: python bot.py
+        env:
+          X_USERNAME: ${{ secrets.X_USERNAME }}
+          X_PASSWORD: ${{ secrets.X_PASSWORD }}
+          SOURCE_ACCOUNT: ${{ secrets.SOURCE_ACCOUNT }}
+      - run: |
+          git config user.name "bot"
+          git config user.email "bot@bot.com"
+          git add posted.json
+          git commit -m "update state" || echo "no change"
+          git push
