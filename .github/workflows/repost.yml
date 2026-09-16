@@ -17,6 +17,11 @@ jobs:
         env:
           X_COOKIES: ${{ secrets.X_COOKIES }}
           SOURCE_ACCOUNT: ${{ secrets.SOURCE_ACCOUNT }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug-screenshot
+          path: debug.png
       - run: |
           git config user.name "bot"
           git config user.email "bot@bot.com"
