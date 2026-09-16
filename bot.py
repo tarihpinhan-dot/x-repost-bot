@@ -45,11 +45,14 @@ async def main():
         await context.add_cookies(cookies)
         page = await context.new_page()
 
-        await page.goto(f"https://x.com/{source_account}")
-        await page.wait_for_timeout(5000)
+        await page.goto(f"https://x.com/{source_account}", wait_until="networkidle", timeout=60000)
+        await page.wait_for_timeout(3000)
+        try:
+            await page.wait_for_selector('article', timeout=15000)
+        except Exception as e:
+            print(f"article elementi bulunamadı: {e}")
 
-        # Login kontrolü + ekran görüntüsü
-        await page.screenshot(path="debug.png")
+        await page.screenshot(path="debug.png", full_page=True)
         current_url = page.url
         print(f"Şu anki URL: {current_url}")
 
