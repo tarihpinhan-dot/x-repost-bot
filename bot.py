@@ -36,6 +36,8 @@ async def main():
     raw_cookies = json.loads(os.environ["X_COOKIES"])
     cookies = normalize_cookies(raw_cookies)
     source_account = os.environ["SOURCE_ACCOUNT"]
+    print(f"Kaynak hesap: {source_account}")
+    print(f"Daha önce paylaşılan tweet sayısı: {len(posted)}")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -46,7 +48,19 @@ async def main():
         await page.goto(f"https://x.com/{source_account}")
         await page.wait_for_timeout(5000)
 
+        # Login kontrolü + ekran görüntüsü
+        await page.screenshot(path="debug.png")
+        current_url = page.url
+        print(f"Şu anki URL: {current_url}")
+
+        if "login" in current_url:
+            print("HATA: Cookie ile giriş yapılamadı, login sayfasına yönlendirildi.")
+        else:
+            print("Giriş başarılı görünüyor, sayfa yüklendi.")
+
         tweet_elements = await page.locator('article[data-testid="tweet"]').all()
+        print(f"Sayfada bulunan tweet elementi sayısı: {len(tweet_elements)}")
+
         new_tweets = []
         for el in tweet_elements[:5]:
             try:
@@ -55,10 +69,14 @@ async def main():
                 tweet_id = href.split('/status/')[-1].split('?')[0]
                 if tweet_id not in posted:
                     new_tweets.append((tweet_id, text))
-            except Exception:
+            except Exception as e:
+                print(f"Tweet okunamadı, atlanıyor: {e}")
                 continue
 
+        print(f"Yeni bulunan tweet sayısı: {len(new_tweets)}")
+
         for tweet_id, text in reversed(new_tweets):
+            print(f"Paylaşılıyor: {tweet_id} -> {text[:50]}")
             await page.goto("https://x.com/compose/post")
             await page.wait_for_timeout(2000)
             await page.fill('div[aria-label="Post text"]', text)
